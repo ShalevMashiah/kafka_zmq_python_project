@@ -9,3 +9,4 @@ class LoggerMessages:
     KAFKA_TOPIC_ALREADY_CONSUMING = "Already consuming topic: {}"
     KAFKA_TOPIC_NOT_EXIST = "Topic Not Exist"
     EXAMPLE_PRINT_CONSUMER_MSG = ", message is: {}"
+    KAFKA_TOPIC = "Kafka topic: {}"

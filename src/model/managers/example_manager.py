@@ -42,4 +42,5 @@ class ExampleManager(IExampleManager):
 
     def _print_consumer(self, msg: str) -> None:
         self._logger.log(ConstStrings.LOG_NAME_DEBUG,
+                         LoggerMessages.KAFKA_TOPIC.format(self._example_topic_consumer) +
                          LoggerMessages.EXAMPLE_PRINT_CONSUMER_MSG.format(str(msg)))

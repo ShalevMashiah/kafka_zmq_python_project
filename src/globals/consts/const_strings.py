@@ -34,7 +34,7 @@ class ConstStrings:
     KAFKA_ROOT_CONFIGURATION_NAME = "kafka_configuration"
 
     EXAMPLE_TOPIC = "orders"
-    EXAMPLE_MESSAGE = "example_message"
+    EXAMPLE_MESSAGE = "TO DO: add JASON"
     ORDER_TOPIC = "orders"
 
     DECODE_FORMAT = 'utf-8'
