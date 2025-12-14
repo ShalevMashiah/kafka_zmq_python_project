@@ -33,8 +33,9 @@ class ConstStrings:
     BOOTSTRAP_SERVERS_ROOT = 'bootstrap_servers'
     KAFKA_ROOT_CONFIGURATION_NAME = "kafka_configuration"
 
-    EXAMPLE_TOPIC = "example_topic"
+    EXAMPLE_TOPIC = "orders"
     EXAMPLE_MESSAGE = "example_message"
+    ORDER_TOPIC = "orders"
 
     DECODE_FORMAT = 'utf-8'
     ENCODE_FORMAT = 'utf-8'
