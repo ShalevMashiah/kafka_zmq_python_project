@@ -29,7 +29,7 @@ class ConstStrings:
     EXAMPLE_OPERATION = "example_operation"
 
     # ? Kafka Configuration
-    GLOBAL_CONFIG_PATH = "/app/config/configuration.xml"
+    GLOBAL_CONFIG_PATH = "configuration.xml"
     BOOTSTRAP_SERVERS_ROOT = 'bootstrap_servers'
     KAFKA_ROOT_CONFIGURATION_NAME = "kafka_configuration"
 
