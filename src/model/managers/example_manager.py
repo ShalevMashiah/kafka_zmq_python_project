@@ -14,6 +14,7 @@ from infrastructure.factories.logger_factory import LoggerFactory
 class ExampleManager(IExampleManager):
     def __init__(self, config_manager: IConfigManager, kafka_manager: IKafkaManager) -> None:
         super().__init__()
+        self.order_id_counter = 1
         self._config_manager = config_manager
         self._kafka_manager = kafka_manager
         self._example_topic_consumer = ConstStrings.EXAMPLE_TOPIC
@@ -37,8 +38,18 @@ class ExampleManager(IExampleManager):
     def _produce_kafka_message(self) -> None:
         while (True):
             time.sleep(Consts.SEND_MESSAGE_DURATION)
+            order = {
+                "order_id": self.order_id_counter,
+                "customer": f"Customer {self.order_id_counter}",
+                "items": ["Pizza", "Drink"],
+                "total_price": 89.90,
+                "status": "CREATED",
+            }
+            self.order_id_counter += 1
+            message = json.dumps(order)
+            
             self._kafka_manager.send_message(
-                ConstStrings.EXAMPLE_TOPIC, ConstStrings.EXAMPLE_MESSAGE)
+                ConstStrings.EXAMPLE_TOPIC, message)
 
     def _print_consumer(self, msg: str) -> None:
         self._logger.log(ConstStrings.LOG_NAME_DEBUG,
