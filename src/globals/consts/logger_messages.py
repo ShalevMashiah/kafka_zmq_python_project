@@ -10,3 +10,9 @@ class LoggerMessages:
     KAFKA_TOPIC_NOT_EXIST = "Topic Not Exist"
     EXAMPLE_PRINT_CONSUMER_MSG = ", message is: {}"
     KAFKA_TOPIC = "Kafka topic: {}"
+
+    # ---------------- Orders UI ----------------
+    ORDER_PRINT_CONSUMER_MSG = "Order event #{} received"
+    ORDER_EVENT = "[ORDER EVENT]"
+    ORDER_TOPIC = "Topic:"
+    ORDER_MESSAGE = "Message:"
