@@ -34,6 +34,7 @@ class ZmqServerManager(IZmqServerManager):
         self._server_working_thread.start()
         self._logger.log(ConstStrings.LOG_NAME_DEBUG,
                          LoggerMessages.ZMQ_SERVER_BOUND_TO_ADDRESS.format(self._address))
+        return self
 
     def stop(self) -> None:
         self._is_running = False

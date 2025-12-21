@@ -23,7 +23,18 @@ class ManagerFactory:
 
     @staticmethod
     def create_example_zmq_manager() -> IZmqServerManager:
-        return InfrastructureFactory.create_zmq_server_manager()
+        if ManagerFactory._kafka_manager is None:
+            ManagerFactory.create_example_manager()
+
+        kafka_manager = ManagerFactory._kafka_manager
+
+        zmq_server_manager = InfrastructureFactory.create_zmq_server_manager(
+            kafka_manager
+        )
+        zmq_server_manager.start()
+
+        ManagerFactory._zmq_server_manager = zmq_server_manager
+        return zmq_server_manager
 
     @staticmethod
     def create_all():
