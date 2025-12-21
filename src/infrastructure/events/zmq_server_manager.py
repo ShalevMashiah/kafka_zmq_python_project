@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 from typing import List
@@ -13,6 +14,7 @@ from infrastructure.api.routers.base_router import BaseRouter
 from infrastructure.interfaces.iapi_router import IApiRouter
 from infrastructure.factories.logger_factory import LoggerFactory
 from globals.consts.logger_messages import LoggerMessages
+from globals.utils.colors import Colors
 
 
 class ZmqServerManager(IZmqServerManager):
@@ -26,6 +28,9 @@ class ZmqServerManager(IZmqServerManager):
         self._logger = LoggerFactory.get_logger_manager()
         self._include_routers(routers)
 
+    def _format_tagged(self, msg: str) -> str:
+        return f"{Colors.BOLD}{Colors.CYAN}[ZMQ]{Colors.RESET} {Colors.WHITE}{msg}{Colors.RESET}"
+    
     def start(self) -> None:
         self._socket.bind(self._address)
         self._is_running = True
@@ -49,28 +54,150 @@ class ZmqServerManager(IZmqServerManager):
         while self._is_running:
             try:
                 request_json = self._socket.recv_json()
-                request = Request.from_json(request_json)
-            except zmq.Again:
-                time.sleep(Consts.ZMQ_SERVER_LOOP_DURATION)
-                continue
+                self._logger.log(
+                    ConstStrings.LOG_NAME_DEBUG,
+                    self._format_tagged(
+                        LoggerMessages.ZMQ_SERVER_RECEIVED_RAW_REQUEST.format(
+                            request_json
+                        )
+                    ),
+                )
 
-            response = self._handle_request(request)
-            self._socket.send_json(response.to_json())
+                try:
+                    request = Request.from_json(request_json)
+                    self._logger.log(
+                        ConstStrings.LOG_NAME_DEBUG,
+                        self._format_tagged(
+                            LoggerMessages.ZMQ_SERVER_PARSED_REQUEST.format(
+                                request.resource,
+                                request.operation,
+                                request.data,
+                            )
+                        ),
+                    )
+                except Exception as e:
+                    self._logger.log(
+                        ConstStrings.LOG_NAME_DEBUG,
+                        self._format_tagged(
+                            LoggerMessages.ZMQ_SERVER_PARSE_REQUEST_FAILED.format(e)
+                        ),
+                    )
+                    response = Response(
+                        status=ResponseStatus.ERROR,
+                        data={ConstStrings.ERROR_MESSAGE: f"invalid request: {e}"},
+                    )
+                else:
+                    response = self._handle_request(request)
+
+            except Exception as e:
+                self._logger.log(
+                    ConstStrings.LOG_NAME_DEBUG,
+                    self._format_tagged(
+                        LoggerMessages.ZMQ_SERVER_SOCKET_LOOP_ERROR.format(e)
+                    ),
+                )
+                response = Response(
+                    status=ResponseStatus.ERROR,
+                    data={ConstStrings.ERROR_MESSAGE: str(e)},
+                )
+
+            try:
+                self._socket.send_json(response.to_json())
+                self._logger.log(
+                    ConstStrings.LOG_NAME_DEBUG,
+                    self._format_tagged(
+                        LoggerMessages.ZMQ_SERVER_SENT_RESPONSE.format(
+                            response.to_json()
+                        )
+                    ),
+                )
+            except Exception as e:
+                self._logger.log(
+                    ConstStrings.LOG_NAME_DEBUG,
+                    self._format_tagged(
+                        LoggerMessages.ZMQ_SERVER_SEND_ERROR.format(e)
+                    ),
+                )
+                time.sleep(Consts.ZMQ_SERVER_LOOP_DURATION)
 
     def _handle_request(self, request: Request) -> Response:
         resource = request.resource
         operation = request.operation
         data = request.data
+
+        self._logger.log(
+            ConstStrings.LOG_NAME_DEBUG,
+            self._format_tagged(
+                LoggerMessages.ZMQ_SERVER_PARSED_REQUEST.format(
+                    resource, operation, data
+                )
+            ),
+        )
+
+        if resource == "orders" and operation == "create":
+            try:
+                payload = dict(data)
+                payload["source"] = "ZMQ"
+
+                self._logger.log(
+                    ConstStrings.LOG_NAME_DEBUG,
+                    self._format_tagged(
+                        LoggerMessages.ZMQ_SERVER_FORWARDING_TO_KAFKA.format(
+                            ConstStrings.ORDER_TOPIC, payload
+                        )
+                    ),
+                )
+
+                self._kafka_manager.send_message(
+                    ConstStrings.ORDER_TOPIC, json.dumps(payload)
+                )
+
+                self._logger.log(
+                    ConstStrings.LOG_NAME_DEBUG,
+                    self._format_tagged(
+                        LoggerMessages.ZMQ_SERVER_FORWARDING_DONE.format(
+                            ConstStrings.ORDER_TOPIC
+                        )
+                    ),
+                )
+
+                return Response(
+                    status=ResponseStatus.SUCCESS,
+                    data={
+                        "message": "order sent to kafka",
+                        "topic": ConstStrings.ORDER_TOPIC,
+                    },
+                )
+            except Exception as e:
+                self._logger.log(
+                    ConstStrings.LOG_NAME_DEBUG,
+                    self._format_tagged(
+                        LoggerMessages.ZMQ_SERVER_FORWARDING_FAILED.format(e)
+                    ),
+                )
+                return Response(
+                    status=ResponseStatus.ERROR,
+                    data={ConstStrings.ERROR_MESSAGE: str(e)},
+                )
+
         if resource in self._routers_dict:
             route = self._routers_dict[resource]
             return route.handle_operation(operation, data)
-        else:
-            return Response(
-                status=ResponseStatus.ERROR,
-                data={
-                    ConstStrings.ERROR_MESSAGE: ConstStrings.UNKNOWN_RESOURCE_ERROR_MESSAGE}
-            )
+
+        return Response(
+            status=ResponseStatus.ERROR,
+            data={ConstStrings.ERROR_MESSAGE: ConstStrings.UNKNOWN_RESOURCE_ERROR_MESSAGE},
+        )
 
     def _include_routers(self, routers: List[IApiRouter]) -> None:
         for router in routers:
             self._routers_dict[router.resource] = router
+
+        self._logger.log(
+            ConstStrings.LOG_NAME_DEBUG,
+            self._format_tagged(
+                LoggerMessages.ZMQ_SERVER_ROUTERS_REGISTERED.format(
+                    list(self._routers_dict.keys())
+                )
+            ),
+        )
