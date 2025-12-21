@@ -15,18 +15,21 @@ from infrastructure.interfaces.iapi_router import IApiRouter
 from infrastructure.factories.logger_factory import LoggerFactory
 from globals.consts.logger_messages import LoggerMessages
 from globals.utils.colors import Colors
+from infrastructure.interfaces.ikafka_manager import IKafkaManager
 
 
 class ZmqServerManager(IZmqServerManager):
-    def __init__(self, host: str, port: int, routers: List[IApiRouter]):
+    def __init__(self, host: str, port: int, routers: List[IApiRouter], kafka_manager: IKafkaManager):
         self._context = zmq.Context()
         self._socket = self._context.socket(zmq.REP)
         self._address = f"{ConstStrings.BASE_TCP_CONNECTION_STRINGS}{host}:{port}"
+        
         self._is_running = False
         self._server_working_thread = None
         self._routers_dict = dict[str, IApiRouter]()
         self._logger = LoggerFactory.get_logger_manager()
         self._include_routers(routers)
+        self._kafka_manager = kafka_manager
 
     def _format_tagged(self, msg: str) -> str:
         return f"{Colors.BOLD}{Colors.CYAN}[ZMQ]{Colors.RESET} {Colors.WHITE}{msg}{Colors.RESET}"
@@ -53,28 +56,26 @@ class ZmqServerManager(IZmqServerManager):
     def _server_working_handle(self) -> None:
         while self._is_running:
             try:
-                request_json = self._socket.recv_json()
+                request_str = self._socket.recv_string()
                 self._logger.log(
                     ConstStrings.LOG_NAME_DEBUG,
                     self._format_tagged(
-                        LoggerMessages.ZMQ_SERVER_RECEIVED_RAW_REQUEST.format(
-                            request_json
-                        )
+                        LoggerMessages.ZMQ_SERVER_RECEIVED_RAW_REQUEST.format(request_str)
                     ),
                 )
 
                 try:
-                    request = Request.from_json(request_json)
+                    request = Request.from_json(request_str)
                     self._logger.log(
                         ConstStrings.LOG_NAME_DEBUG,
                         self._format_tagged(
                             LoggerMessages.ZMQ_SERVER_PARSED_REQUEST.format(
-                                request.resource,
-                                request.operation,
-                                request.data,
+                                request.resource, request.operation, request.data
                             )
                         ),
                     )
+                    response = self._handle_request(request)
+
                 except Exception as e:
                     self._logger.log(
                         ConstStrings.LOG_NAME_DEBUG,
@@ -86,8 +87,6 @@ class ZmqServerManager(IZmqServerManager):
                         status=ResponseStatus.ERROR,
                         data={ConstStrings.ERROR_MESSAGE: f"invalid request: {e}"},
                     )
-                else:
-                    response = self._handle_request(request)
 
             except Exception as e:
                 self._logger.log(
@@ -102,21 +101,18 @@ class ZmqServerManager(IZmqServerManager):
                 )
 
             try:
-                self._socket.send_json(response.to_json())
+                resp_str = response.to_json()
+                self._socket.send_string(resp_str)
                 self._logger.log(
                     ConstStrings.LOG_NAME_DEBUG,
                     self._format_tagged(
-                        LoggerMessages.ZMQ_SERVER_SENT_RESPONSE.format(
-                            response.to_json()
-                        )
+                        LoggerMessages.ZMQ_SERVER_SENT_RESPONSE.format(resp_str)
                     ),
                 )
             except Exception as e:
                 self._logger.log(
                     ConstStrings.LOG_NAME_DEBUG,
-                    self._format_tagged(
-                        LoggerMessages.ZMQ_SERVER_SEND_ERROR.format(e)
-                    ),
+                    self._format_tagged(LoggerMessages.ZMQ_SERVER_SEND_ERROR.format(e)),
                 )
                 time.sleep(Consts.ZMQ_SERVER_LOOP_DURATION)
 
@@ -125,20 +121,11 @@ class ZmqServerManager(IZmqServerManager):
         operation = request.operation
         data = request.data
 
-        self._logger.log(
-            ConstStrings.LOG_NAME_DEBUG,
-            self._format_tagged(
-                LoggerMessages.ZMQ_SERVER_PARSED_REQUEST.format(
-                    resource, operation, data
-                )
-            ),
-        )
-
+        # ✅ BRIDGE: ZMQ -> Kafka using existing producer logic
         if resource == "orders" and operation == "create":
             try:
                 payload = dict(data)
-                payload["source"] = "ZMQ"
-
+                payload["source"] = "ZMQ" 
                 self._logger.log(
                     ConstStrings.LOG_NAME_DEBUG,
                     self._format_tagged(
@@ -148,26 +135,20 @@ class ZmqServerManager(IZmqServerManager):
                     ),
                 )
 
-                self._kafka_manager.send_message(
-                    ConstStrings.ORDER_TOPIC, json.dumps(payload)
-                )
+                self._kafka_manager.send_message(ConstStrings.ORDER_TOPIC, json.dumps(payload))
 
                 self._logger.log(
                     ConstStrings.LOG_NAME_DEBUG,
                     self._format_tagged(
-                        LoggerMessages.ZMQ_SERVER_FORWARDING_DONE.format(
-                            ConstStrings.ORDER_TOPIC
-                        )
+                        LoggerMessages.ZMQ_SERVER_FORWARDING_DONE.format(ConstStrings.ORDER_TOPIC)
                     ),
                 )
 
                 return Response(
                     status=ResponseStatus.SUCCESS,
-                    data={
-                        "message": "order sent to kafka",
-                        "topic": ConstStrings.ORDER_TOPIC,
-                    },
+                    data={"message": "order sent to kafka", "topic": ConstStrings.ORDER_TOPIC},
                 )
+
             except Exception as e:
                 self._logger.log(
                     ConstStrings.LOG_NAME_DEBUG,
@@ -196,8 +177,6 @@ class ZmqServerManager(IZmqServerManager):
         self._logger.log(
             ConstStrings.LOG_NAME_DEBUG,
             self._format_tagged(
-                LoggerMessages.ZMQ_SERVER_ROUTERS_REGISTERED.format(
-                    list(self._routers_dict.keys())
-                )
+                LoggerMessages.ZMQ_SERVER_ROUTERS_REGISTERED.format(list(self._routers_dict.keys()))
             ),
         )

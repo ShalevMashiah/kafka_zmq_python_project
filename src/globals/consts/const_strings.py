@@ -41,7 +41,7 @@ class ConstStrings:
     ENCODE_FORMAT = 'utf-8'
 
     # ? Kafka settings
-    AUTO_OFFSET_RESET = 'earliest'
+    AUTO_OFFSET_RESET = 'latest'
     GROUP_ID = 'my-group'
 
     # ? Log

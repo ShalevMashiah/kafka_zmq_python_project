@@ -8,6 +8,7 @@ from model.data_classes.zmq_request import Request
 from model.data_classes.zmq_response import Response
 from globals.consts.logger_messages import LoggerMessages
 from infrastructure.factories.logger_factory import LoggerFactory
+from globals.utils.colors import Colors
 
 
 class ZmqClientManager(IZmqClientManager):
@@ -16,7 +17,9 @@ class ZmqClientManager(IZmqClientManager):
         self._socket = self._context.socket(zmq.REQ)
         self._address = f"{ConstStrings.BASE_TCP_CONNECTION_STRINGS}{host}:{port}"
         self._logger = LoggerFactory.get_logger_manager()
-
+        
+    def _tag(self, msg: str) -> str:
+        return f"{Colors.BOLD}{Colors.MAGENTA}[ZMQ-CLIENT]{Colors.RESET} {msg}"
 
     def start(self) -> None:
         self._socket.connect(self._address)
@@ -34,26 +37,23 @@ class ZmqClientManager(IZmqClientManager):
     
     def send_request(self, request: Request) -> Response:
         try:
-            self._logger.log(
-                ConstStrings.LOG_NAME_DEBUG,
-                self._tag(
-                    LoggerMessages.ZMQ_CLIENT_SENDING_REQUEST.format(
-                        request.to_json()
-                    )
-                ),
-            )
-
-            self._socket.send_json(request.to_json())
-            resp_dict = self._socket.recv_json()
+            req_str = request.to_json()
 
             self._logger.log(
                 ConstStrings.LOG_NAME_DEBUG,
-                self._tag(
-                    LoggerMessages.ZMQ_CLIENT_RECEIVED_RESPONSE.format(resp_dict)
-                ),
+                self._tag(LoggerMessages.ZMQ_CLIENT_SENDING_REQUEST.format(req_str)),
             )
 
-            return Response.from_json(resp_dict)
+            self._socket.send_string(req_str)
+            resp_str = self._socket.recv_string()
+
+            self._logger.log(
+                ConstStrings.LOG_NAME_DEBUG,
+                self._tag(LoggerMessages.ZMQ_CLIENT_RECEIVED_RESPONSE.format(resp_str)),
+            )
+
+            return Response.from_json(resp_str)
+
         except Exception as e:
             self._logger.log(
                 ConstStrings.LOG_NAME_DEBUG,

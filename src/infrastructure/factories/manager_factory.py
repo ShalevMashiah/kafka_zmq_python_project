@@ -14,25 +14,23 @@ class ManagerFactory:
     #     infra_root = os.path.dirname(factories_dir)
     #     config_path = os.path.join(infra_root, "config", "configuration.xml")
     #     return config_path
-    
+    _kafka_manager = None
+    _zmq_server_manager = None
+
     @staticmethod
     def create_example_manager() -> IExampleManager:
         config_manager = InfrastructureFactory.create_config_manager(
             ConstStrings.GLOBAL_CONFIG_PATH)
-        return ExampleManager(config_manager, InfrastructureFactory.create_kafka_manager(config_manager))
+        ManagerFactory._kafka_manager = InfrastructureFactory.create_kafka_manager(config_manager)
+
+        return ExampleManager(config_manager, ManagerFactory._kafka_manager)
 
     @staticmethod
     def create_example_zmq_manager() -> IZmqServerManager:
         if ManagerFactory._kafka_manager is None:
             ManagerFactory.create_example_manager()
 
-        kafka_manager = ManagerFactory._kafka_manager
-
-        zmq_server_manager = InfrastructureFactory.create_zmq_server_manager(
-            kafka_manager
-        )
-        zmq_server_manager.start()
-
+        zmq_server_manager = InfrastructureFactory.create_zmq_server_manager(ManagerFactory._kafka_manager)
         ManagerFactory._zmq_server_manager = zmq_server_manager
         return zmq_server_manager
 

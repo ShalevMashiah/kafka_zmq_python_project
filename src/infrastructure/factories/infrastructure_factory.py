@@ -33,8 +33,8 @@ class InfrastructureFactory:
         return InfrastructureFactory.event_manager
 
     @staticmethod
-    def create_zmq_server_manager() -> IZmqServerManager:
+    def create_zmq_server_manager(kafka_manager: IKafkaManager) -> IZmqServerManager:
         host = os.getenv(ConstStrings.ZMQ_SERVER_HOST)
         port = os.getenv(ConstStrings.ZMQ_SERVER_PORT)
         routers = ApiFactory.create_routers()
-        return ZmqServerManager(host, port, routers).start()
+        return ZmqServerManager(host, port, routers, kafka_manager).start()

@@ -11,18 +11,20 @@ from globals.consts.consts import Consts
 from globals.consts.logger_messages import LoggerMessages
 from infrastructure.factories.logger_factory import LoggerFactory
 from globals.utils.colors import Colors
-from src.infrastructure.events.zmq_client_manager import ZmqClientManager
-
+from infrastructure.events.zmq_client_manager import ZmqClientManager
+from model.data_classes.zmq_request import Request
 
 class ExampleManager(IExampleManager):
     def __init__(self, config_manager: IConfigManager, kafka_manager: IKafkaManager) -> None:
         super().__init__()
-        self.order_id_counter = 1
+        self.order_id_counter = 0
         self._config_manager = config_manager
         self._kafka_manager = kafka_manager
         self._example_topic_consumer = ConstStrings.EXAMPLE_TOPIC
         self._logger = LoggerFactory.get_logger_manager()
-
+        self._await_lock = threading.Lock()
+        self._awaited_order_id = None
+        self._await_event = threading.Event()
         host = os.getenv(ConstStrings.ZMQ_SERVER_HOST) or "127.0.0.1"
         port = int(os.getenv(ConstStrings.ZMQ_SERVER_PORT) or "5555")
         self._zmq_client = ZmqClientManager(host, port)
@@ -45,20 +47,36 @@ class ExampleManager(IExampleManager):
             self._example_topic_consumer, self._print_consumer)
 
     def _produce_kafka_message(self) -> None:
-        while (True):
+        while True:
             time.sleep(Consts.SEND_MESSAGE_DURATION)
+
+            # מייצר order_id עקבי
+            current_id = self.order_id_counter
+           
+
             order = {
-                "order_id": self.order_id_counter,
-                "customer": f"Customer {self.order_id_counter}",
+                "order_id": current_id,
+                "customer": f"Customer {current_id}",
                 "items": ["Pizza", "Drink"],
                 "total_price": 89.90,
                 "status": "CREATED",
             }
-            message = json.dumps(order)
-            
-            self._kafka_manager.send_message(
-                ConstStrings.EXAMPLE_TOPIC, message)
 
+            with self._await_lock:
+                self._awaited_order_id = current_id
+                self._await_event.clear()
+
+            req = Request(resource="orders", operation="create", data=order)
+            resp = self._zmq_client.send_request(req)
+            
+            got_it = self._await_event.wait(timeout=10)
+
+            if not got_it:
+                self._logger.log(
+                    ConstStrings.LOG_NAME_DEBUG,
+                    f"[PRODUCER] Timeout waiting for Kafka consume of order_id={current_id}"
+                )
+            self.order_id_counter += 1
     def _print_consumer(self, msg: str) -> None:
         # self._logger.log(ConstStrings.LOG_NAME_DEBUG,
         #                  LoggerMessages.EXAMPLE_PRINT_CONSUMER_MSG.format(str(msg)))
@@ -80,4 +98,3 @@ class ExampleManager(IExampleManager):
         )
         
         self._logger.log(ConstStrings.LOG_NAME_DEBUG, formatted)
-        self.order_id_counter += 1
