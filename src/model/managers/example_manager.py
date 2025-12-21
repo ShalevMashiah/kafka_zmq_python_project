@@ -1,3 +1,4 @@
+import os
 import time
 import threading
 import json
@@ -10,6 +11,7 @@ from globals.consts.consts import Consts
 from globals.consts.logger_messages import LoggerMessages
 from infrastructure.factories.logger_factory import LoggerFactory
 from globals.utils.colors import Colors
+from src.infrastructure.events.zmq_client_manager import ZmqClientManager
 
 
 class ExampleManager(IExampleManager):
@@ -20,6 +22,12 @@ class ExampleManager(IExampleManager):
         self._kafka_manager = kafka_manager
         self._example_topic_consumer = ConstStrings.EXAMPLE_TOPIC
         self._logger = LoggerFactory.get_logger_manager()
+
+        host = os.getenv(ConstStrings.ZMQ_SERVER_HOST) or "127.0.0.1"
+        port = int(os.getenv(ConstStrings.ZMQ_SERVER_PORT) or "5555")
+        self._zmq_client = ZmqClientManager(host, port)
+        self._zmq_client.start()
+
         self._init_threading()
         self._init_consumers()
 
