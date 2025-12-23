@@ -50,7 +50,6 @@ class ExampleManager(IExampleManager):
         while True:
             time.sleep(Consts.SEND_MESSAGE_DURATION)
 
-            # מייצר order_id עקבי
             current_id = self.order_id_counter
            
 
