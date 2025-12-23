@@ -25,8 +25,8 @@ class ExampleManager(IExampleManager):
         self._await_lock = threading.Lock()
         self._awaited_order_id = None
         self._await_event = threading.Event()
-        host = os.getenv(ConstStrings.ZMQ_SERVER_HOST) or "127.0.0.1"
-        port = int(os.getenv(ConstStrings.ZMQ_SERVER_PORT) or "5555")
+        host = os.getenv(ConstStrings.ZMQ_SERVER_HOST) 
+        port = int(os.getenv(ConstStrings.ZMQ_SERVER_PORT))
         self._zmq_client = ZmqClientManager(host, port)
         self._zmq_client.start()
 
