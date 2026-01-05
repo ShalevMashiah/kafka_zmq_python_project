@@ -36,6 +36,5 @@ class ManagerFactory:
 
     @staticmethod
     def create_all():
-        # Consumer only needs to consume from Kafka - no ZMQ server needed
         ManagerFactory.create_example_manager()
         # ManagerFactory.create_example_zmq_manager()

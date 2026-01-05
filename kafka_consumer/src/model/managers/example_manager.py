@@ -62,13 +62,13 @@ class ExampleManager(IExampleManager):
             req = Request(resource="orders", operation="create", data=order)
             resp = self._zmq_client.send_request(req)
             
-            got_it = self._await_event.wait(timeout=10)
+            # got_it = self._await_event.wait(timeout=10)
 
-            if not got_it:
-                self._logger.log(
-                    ConstStrings.LOG_NAME_DEBUG,
-                    f"[PRODUCER] Timeout waiting for Kafka consume of order_id={current_id}"
-                )
+            # if not got_it:
+            #     self._logger.log(
+            #         ConstStrings.LOG_NAME_DEBUG,
+            #         f"[PRODUCER] Timeout waiting for Kafka consume of order_id={current_id}"
+            #     )
     def _print_consumer(self, msg: str) -> None:
         # self._logger.log(ConstStrings.LOG_NAME_DEBUG,
         #                  LoggerMessages.EXAMPLE_PRINT_CONSUMER_MSG.format(str(msg)))
