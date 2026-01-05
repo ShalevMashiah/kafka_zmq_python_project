@@ -33,7 +33,7 @@ services:
   producer:
     build:
       context: .
-      dockerfile: kafka_producer/Dockerfile
+      dockerfile: ../kafka_producer/Dockerfile
     container_name: kafka_producer
     depends_on:
       kafka:
@@ -45,13 +45,14 @@ services:
     ports:
       - "${ZMQ_SERVER_PORT}:${ZMQ_SERVER_PORT}"
     volumes:
-      - .:/app
+      - ..:/app
+      - producer-logs:/app/logs
     command: ["python", "kafka_producer/src/main.py"]
 
   consumer:
     build:
       context: .
-      dockerfile: kafka_consumer/Dockerfile
+      dockerfile: ../kafka_consumer/Dockerfile
     container_name: kafka_consumer
     depends_on:
       kafka:
@@ -59,9 +60,14 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:${KAFKA_PORT}
       KAFKA_GROUP_ID: ${KAFKA_GROUP_ID}
+      ZMQ_SERVER_HOST: ${ZMQ_SERVER_HOST}
+      ZMQ_SERVER_PORT: ${ZMQ_SERVER_PORT}
     volumes:
-      - .:/app
+      - ..:/app
+      - consumer-logs:/app/logs
     command: ["python", "kafka_consumer/src/main.py"]
 
 volumes:
   kafka-data:
+  producer-logs:
+  consumer-logs:
