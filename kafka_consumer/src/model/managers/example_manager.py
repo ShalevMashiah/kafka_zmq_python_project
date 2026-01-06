@@ -11,8 +11,6 @@ from globals.consts.consts import Consts
 from globals.consts.logger_messages import LoggerMessages
 from infrastructure.factories.logger_factory import LoggerFactory
 from globals.utils.colors import Colors
-from infrastructure.events.zmq_client_manager import ZmqClientManager
-from model.data_classes.zmq_request import Request
 
 class ExampleManager(IExampleManager):
     def __init__(self, config_manager: IConfigManager, kafka_manager: IKafkaManager) -> None:
@@ -22,8 +20,6 @@ class ExampleManager(IExampleManager):
         self._kafka_manager = kafka_manager
         self._example_topic_consumer = ConstStrings.EXAMPLE_TOPIC
         self._logger = LoggerFactory.get_logger_manager()
-        
-        # Consumer only needs to consume from Kafka - no ZMQ client needed
         self._init_consumers()
 
     def do_something(self) -> None:
@@ -39,46 +35,13 @@ class ExampleManager(IExampleManager):
         self._kafka_manager.start_consuming(
             self._example_topic_consumer, self._print_consumer)
 
-    def _produce_kafka_message(self) -> None:
-        while True:
-            time.sleep(Consts.SEND_MESSAGE_DURATION)
-            self.order_id_counter += 1
-
-            current_id = self.order_id_counter
-           
-
-            order = {
-                "order_id": current_id,
-                "customer": f"Customer {current_id}",
-                "items": ["Pizza", "Drink"],
-                "total_price": 89.90,
-                "status": "CREATED",
-            }
-
-            with self._await_lock:
-                self._awaited_order_id = current_id
-                self._await_event.clear()
-
-            req = Request(resource="orders", operation="create", data=order)
-            resp = self._zmq_client.send_request(req)
-            
-            # got_it = self._await_event.wait(timeout=10)
-
-            # if not got_it:
-            #     self._logger.log(
-            #         ConstStrings.LOG_NAME_DEBUG,
-            #         f"[PRODUCER] Timeout waiting for Kafka consume of order_id={current_id}"
-            #     )
     def _print_consumer(self, msg: str) -> None:
-        # self._logger.log(ConstStrings.LOG_NAME_DEBUG,
-        #                  LoggerMessages.EXAMPLE_PRINT_CONSUMER_MSG.format(str(msg)))
         try:
             data = json.loads(msg)
         except Exception:
             print("Failed to parse message as JSON.")
             data = msg
 
-        # Get the order_id from the message data
         order_id = data.get('order_id', 'unknown') if isinstance(data, dict) else 'unknown'
 
         formatted = (

@@ -31,8 +31,6 @@ class ExampleManager(IExampleManager):
         self._zmq_client.start()
 
         self._init_threading()
-        # Consumer disabled in producer - only the consumer service should read from Kafka
-        # self._init_consumers()
 
     def do_something(self) -> None:
         pass
@@ -42,10 +40,6 @@ class ExampleManager(IExampleManager):
             target=self._produce_kafka_message
         )
         self._message_produce_threading.start()
-
-    def _init_consumers(self) -> None:
-        self._kafka_manager.start_consuming(
-            self._example_topic_consumer, self._print_consumer)
 
     def _produce_kafka_message(self) -> None:
         while True:
@@ -77,24 +71,3 @@ class ExampleManager(IExampleManager):
                     f"[PRODUCER] Timeout waiting for Kafka consume of order_id={current_id}"
                 )
             self.order_id_counter += 1
-    def _print_consumer(self, msg: str) -> None:
-        # self._logger.log(ConstStrings.LOG_NAME_DEBUG,
-        #                  LoggerMessages.EXAMPLE_PRINT_CONSUMER_MSG.format(str(msg)))
-        try:
-            data = json.loads(msg)
-        except Exception:
-            print("Failed to parse message as JSON.")
-            data = msg
-
-        formatted = (
-            f"{Colors.RESET}{Colors.BOLD}{Colors.BLUE}"
-            f"{LoggerMessages.ORDER_PRINT_CONSUMER_MSG.format(self.order_id_counter)}"
-            f"{Colors.RESET}\n"
-            f"{Colors.CYAN}{LoggerMessages.ORDER_EVENT} "
-            f"{Colors.BOLD}{Colors.YELLOW}{LoggerMessages.ORDER_TOPIC}{Colors.RESET} "
-            f"{Colors.GREEN}{self._example_topic_consumer}{Colors.RESET}\n"
-            f"{Colors.BOLD}{Colors.MAGENTA}{LoggerMessages.ORDER_MESSAGE}{Colors.RESET} "
-            f"{Colors.WHITE}{json.dumps(data, indent=4)}{Colors.RESET}"
-        )
-        
-        self._logger.log(ConstStrings.LOG_NAME_DEBUG, formatted)

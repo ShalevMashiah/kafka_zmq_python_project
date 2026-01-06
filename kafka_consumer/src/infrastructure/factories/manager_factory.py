@@ -2,7 +2,6 @@ import os
 from infrastructure.factories.infrastructure_factory import InfrastructureFactory
 from globals.consts.const_strings import ConstStrings
 from infrastructure.interfaces.iexample_manager import IExampleManager
-from infrastructure.interfaces.izmq_server_manager import IZmqServerManager
 from model.managers.example_manager import ExampleManager
 from infrastructure.interfaces.ilogger_manager import ILoggerManager
 
@@ -26,15 +25,5 @@ class ManagerFactory:
         return ExampleManager(config_manager, ManagerFactory._kafka_manager)
 
     @staticmethod
-    def create_example_zmq_manager() -> IZmqServerManager:
-        if ManagerFactory._kafka_manager is None:
-            ManagerFactory.create_example_manager()
-
-        zmq_server_manager = InfrastructureFactory.create_zmq_server_manager(ManagerFactory._kafka_manager)
-        ManagerFactory._zmq_server_manager = zmq_server_manager
-        return zmq_server_manager
-
-    @staticmethod
     def create_all():
         ManagerFactory.create_example_manager()
-        # ManagerFactory.create_example_zmq_manager()
