@@ -12,7 +12,6 @@ class KafkaManager(IKafkaManager):
     def __init__(self, config_manager: IConfigManager) -> None:
         self._topic = None
         self._producer = None
-        self._consumers = {}
         self._bootstrap_servers = None
         self._config_manager = config_manager
         self._logger = LoggerFactory.get_logger_manager()
