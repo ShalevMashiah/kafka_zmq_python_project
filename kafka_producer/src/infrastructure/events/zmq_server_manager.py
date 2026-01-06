@@ -121,7 +121,6 @@ class ZmqServerManager(IZmqServerManager):
         operation = request.operation
         data = request.data
 
-        # ✅ BRIDGE: ZMQ -> Kafka using existing producer logic
         if resource == "orders" and operation == "create":
             try:
                 payload = dict(data)
